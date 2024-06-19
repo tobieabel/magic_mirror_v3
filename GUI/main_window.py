@@ -1,13 +1,23 @@
-from PyQt5.QtWidgets import QMainWindow, QPushButton, QHBoxLayout, QWidget, QLabel, QVBoxLayout, QStackedLayout, QApplication
+from PyQt5.QtWidgets import QMainWindow, QPushButton, QHBoxLayout, QWidget, QLabel, QVBoxLayout, QStackedLayout, \
+    QApplication, QFileDialog, QComboBox
 from PyQt5.QtGui import QImage, QPixmap, QFont
 from PyQt5.QtCore import Qt, QSize, pyqtSignal, pyqtSlot, QUrl
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 from PyQt5.QtMultimediaWidgets import QVideoWidget
-
+import shutil
+import os
+import glob
 import Model.object_detection
 from Model.object_detection import video_update
 import cv2
 import numpy as np
+import time
+
+#video_file_path = '/Users/tobieabel/PycharmProjects/Magic_Mirror_v3/uploads/Scary_NunV3.mp4'
+uploads_dir = '/Users/tobieabel/PycharmProjects/Magic_Mirror_v3/uploads/'
+video_file_path = os.path.join(uploads_dir, 'Scary_NunV3.mp4')  # Initial hardcoded path
+
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -21,18 +31,31 @@ class MainWindow(QMainWindow):
         self.stop_button.setFixedSize(QSize(100, 50))
         self.puzzle_button = QPushButton('Play Puzzle')
         self.puzzle_button.setFixedSize(QSize(100, 50))
+        self.upload_button = QPushButton('Upload Video')
+        self.upload_button.setFixedSize(QSize(150, 50))
+        self.video_picklist = QComboBox()
+        self.video_picklist.setFixedSize(QSize(300, 50))
         self.video_widget = VideoWidget()
         self.fullscreen_window = None
+
+        # Connect the upload button to the upload method
+        self.upload_button.clicked.connect(self.upload_video)
+        self.video_picklist.currentIndexChanged.connect(self.select_video)
+
+        # Populate video picklist
+        self.update_video_picklist()
 
         # Create a horizontal layout for buttons
         button_layout = QHBoxLayout()
         button_layout.addWidget(self.start_button)
         button_layout.addWidget(self.stop_button)
         button_layout.addWidget(self.puzzle_button)
+        button_layout.addWidget(self.upload_button)
 
         # Create a vertical layout and add the button layout and video widget
         layout = QVBoxLayout()
         layout.addLayout(button_layout)  # Add the horizontal button layout
+        layout.addWidget(self.video_picklist)
         layout.addWidget(self.video_widget)
 
         container = QWidget()
@@ -43,7 +66,43 @@ class MainWindow(QMainWindow):
         self.fullscreen_window = FullScreenWindow()
 
 
+    def upload_video(self):
+        """
+        Handle video file upload and save it to the uploads directory.
+        """
+        global video_file_path
 
+        # Open file dialog to select video file
+        file_dialog = QFileDialog()
+        file_path, _ = file_dialog.getOpenFileName(self, "Select Video", "", "Video Files (*.mp4)")
+
+        if file_path:
+            # Save the selected video to the uploads directory
+            video_name = os.path.basename(file_path)
+            target_path = os.path.join(uploads_dir, video_name)
+            shutil.copy(file_path, target_path)
+            video_file_path = target_path
+            print(f"Uploaded video path: {video_file_path}")
+
+    def update_video_picklist(self):
+        """
+        Update the video picklist with MP4 files in the uploads directory.
+        """
+        self.video_picklist.clear()
+        mp4_files = glob.glob(os.path.join(uploads_dir, "*.mp4"))
+        if mp4_files:
+            for file_path in mp4_files:
+                self.video_picklist.addItem(os.path.basename(file_path), file_path)
+
+    def select_video(self):
+        """
+        Update the video_file_path based on the picklist selection.
+        """
+        global video_file_path
+        selected_video = self.video_picklist.currentData()
+        if selected_video:
+            video_file_path = selected_video
+            print(f"Selected video path: {video_file_path}")
 
 class VideoWidget(QWidget):
     def __init__(self):
@@ -114,7 +173,7 @@ class FullScreenWindow(QWidget):
         self.stacked_layout.addWidget(self.camera_frame_label)
 
         # Black screen with puzzle_text layout
-        self.clue_widget = QLabel('This is a clue to the puzzle', self)
+        self.clue_widget = QLabel('To Open the box,\nMake the number you see,\nRed lights turn green,\nWith an I before V')
         self.clue_widget.setAlignment(Qt.AlignCenter)
         self.clue_widget.setStyleSheet("background-color: black; color: gold;")
         font = QFont("Arial", 48, QFont.Bold)
@@ -126,13 +185,17 @@ class FullScreenWindow(QWidget):
         self.black_screen_widget.setStyleSheet("background-color: black;")
         self.stacked_layout.addWidget(self.black_screen_widget)
 
-        self.setLayout(self.stacked_layout)
+
 
         # Media player setup
         self.media_player = QMediaPlayer(None, QMediaPlayer.VideoSurface)
         self.video_widget = QVideoWidget(self)
         self.media_player.setVideoOutput(self.video_widget)
         self.media_player.mediaStatusChanged.connect(self.on_media_status_changed)
+        self.play_video_signal.connect(self.show_mp4_video)
+        self.stacked_layout.addWidget(self.video_widget)
+
+        self.setLayout(self.stacked_layout)
 
     def move_to_monitor(self, monitor_index):
         screen = QApplication.screens()[monitor_index]
@@ -148,27 +211,28 @@ class FullScreenWindow(QWidget):
     def show_clue_screen(self):
         self.stacked_layout.setCurrentIndex(1)
 
+
     def show_black_screen(self):
         self.stacked_layout.setCurrentIndex(2)
 
-    def play_mp4_video(self, video_path):
+    def show_mp4_video(self):
         """
         Play the specified MP4 video in full screen mode and close the window when done.
         """
-        self.setLayout(QVBoxLayout())
-        self.layout().addWidget(self.video_widget)
-
+        print(video_file_path)
+        video_path=video_file_path
+        self.stacked_layout.setCurrentIndex(3)
         video_url = QUrl.fromLocalFile(video_path)
         self.media_player.setMedia(QMediaContent(video_url))
-        self.showFullScreen()
         self.media_player.play()
 
     def on_media_status_changed(self, status):
         """
-        Handle changes in media status to close the window when the video finishes.
+        Handles any changes in media status automatically - used to close the window when the video finishes.
         """
         if status == QMediaPlayer.EndOfMedia:
-            self.close_FullScreenWindow()
+            self.show_clue_screen()
+            #self.close_FullScreenWindow() #don't need this function at the moment, but keep for future
 
     def close_FullScreenWindow(self):
         self.close()  # Close the window completely
@@ -180,7 +244,7 @@ class FullScreenWindow(QWidget):
         Handles the close event to ensure camera is released properly.
         """
         print("closeEvent called")  # Debugging output
-        self.mdeia_player.stop()  # Stop the media player
+        self.media_player.stop()  # Stop the media player
         event.accept()
 
 

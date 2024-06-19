@@ -1,5 +1,6 @@
 import threading
 import Model.object_detection as od
+import Model.puzzle as puzzle
 import time
 
 
@@ -40,6 +41,9 @@ class MainController:
         print("threads terminated")
         self.main_window.video_widget.black_frame()
         # now call puzzle code
+        puzzle.trigger_video(self.main_window)
+        puzzle.puzzle()
+
 
 
 

@@ -57,8 +57,8 @@ def process_results(prediction: dict, video_frame:VideoFrame):
 
         if detections:
             pipeline.pause_stream() #this pauses the stream, not the threads
-            success = play_video(video_file_path)
-            print(success)
+            #success = play_video(video_file_path)
+            #print(success)
             video_update.terminate()#send signal to main_window to terminate the pipeline
 
 
