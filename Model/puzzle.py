@@ -9,9 +9,13 @@ def trigger_video(mainwindow):
     if mainwindow.fullscreen_window != None:
         mainwindow.fullscreen_window.show_mp4_video()
 
+
 #run the pose estimation model and the puzzle code
-def Puzzle():
+def Puzzle(mainwindow):
     #detect one hand raised
+    print("got to Puzzle()")
+    time.sleep(15)
+    mainwindow.fullscreen_window.show_camera_frame()
     pose_model = model = YOLO("/Users/tobieabel/PycharmProjects/Magic_Mirror_v3/Model/Resources/yolov8n-pose.pt")
     vid_cap = cv2.VideoCapture(0) #capture images from webcam
     while (vid_cap.isOpened()):
@@ -67,10 +71,11 @@ def Puzzle():
 
                         if I_success == False: #i.e. this particular result was not an I but might be a V
                             v_candidates.append((left_angle,right_angle))
-        #connect to the FullScreenWindow
-            cv2.imshow("Puzzle", black_mask)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
+            #connect to the FullScreenWindow
+            mainwindow.fullscreen_window.frame_received.emit(black_mask)
+            #cv2.imshow("Puzzle", black_mask)
+            #if cv2.waitKey(1) & 0xFF == ord('q'):
+            #    break
 
             #once you have looped through all the results, if there was an 'I', then display sound and now check for 'V'
             if I_success == True:

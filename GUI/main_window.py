@@ -154,7 +154,7 @@ class VideoWidget(QWidget):
 
 #widget for displaying a seperate screeen on a given monitor for the puzzle
 class FullScreenWindow(QWidget):
-    frame_received = pyqtSignal(QImage)
+    frame_received = pyqtSignal(object)
     play_video_signal = pyqtSignal(str)
 
     def __init__(self):
@@ -171,6 +171,7 @@ class FullScreenWindow(QWidget):
         self.camera_frame_label = QLabel(self)
         self.camera_frame_label.setAlignment(Qt.AlignCenter)
         self.stacked_layout.addWidget(self.camera_frame_label)
+        self.connection_frame_received = self.frame_received.connect(self.update_frame) #connect signal to show camera frame function
 
         # Black screen with puzzle_text layout
         self.clue_widget = QLabel('To Open the box,\nMake the number you see,\nRed lights turn green,\nWith an I before V')
@@ -202,9 +203,15 @@ class FullScreenWindow(QWidget):
         self.move(screen.geometry().x(), screen.geometry().y())
         self.resize(screen.size())
 
+    def update_frame(self,frame):
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        image = QImage(frame, frame.shape[1], frame.shape[0], QImage.Format_RGB888)
+        pixmap = QPixmap.fromImage(image)
+        self.camera_frame_label.setPixmap(pixmap)
+        self.camera_frame_label.setAlignment(Qt.AlignCenter)
+        print('Puzzle update frame reached')
 
     def show_camera_frame(self):
-        self.camera = cv2.VideoCapture(0)  # Use the first camera
         self.stacked_layout.setCurrentIndex(0)
 
 
@@ -219,12 +226,12 @@ class FullScreenWindow(QWidget):
         """
         Play the specified MP4 video in full screen mode and close the window when done.
         """
-        print(video_file_path)
         video_path=video_file_path
         self.stacked_layout.setCurrentIndex(3)
         video_url = QUrl.fromLocalFile(video_path)
         self.media_player.setMedia(QMediaContent(video_url))
         self.media_player.play()
+        print("playing ",video_file_path)
 
     def on_media_status_changed(self, status):
         """
