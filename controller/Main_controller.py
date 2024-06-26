@@ -11,6 +11,7 @@ class MainController:
         self.main_window.start_button.clicked.connect(self.start_application)
         self.main_window.stop_button.clicked.connect(self.stop_application)
         self.main_window.puzzle_button.clicked.connect(self.start_puzzle)
+        self.main_window.lock_switch.toggled.connect(self.Lock_box)  # Connect to your toggle function
         self.thread_od = None
         self.thread_puzzle = None
 
@@ -41,6 +42,7 @@ class MainController:
         # self.main_window.video_widget.disconnect_signal() #disconnect signal between front and back ends, think this is not needed to close threads
         print("threads terminated")
         self.main_window.video_widget.black_frame()
+
         # now call puzzle code
         puzzle.trigger_video(self.main_window)
         if self.thread_puzzle is None:
@@ -50,35 +52,51 @@ class MainController:
 
 
 
-
-
-
     def stop_application(self):
         # Code to stop the application
         if self.main_window.fullscreen_window != None:
             self.main_window.fullscreen_window.close_FullScreenWindow()
             self.main_window.fullscreen_window = None
-        if self.thread is not None:
+
+        if self.thread_od is not None:
             #self.main_window.video_widget.disconnect_signal() #disconnect signal between front and back ends, think this is not needed to close threads
             od.end_pipeline()
-
-            self.thread.join()
-            self.thread = None
+            self.thread_od.join()
+            self.thread_od = None
             while od.pipelineend is False:
                 time.sleep(0.1)
-            print("threads terminated")
+            print("od threads terminated")
             self.main_window.video_widget.black_frame()
 
+        if self.thread_puzzle is not None:
+            self.thread_puzzle.join()
+            self.thread_puzzle = None
+            print("puzzle thread terminated")
+
     def start_puzzle(self):
-        if self.main_window.fullscreen_window !=None:
-            self.main_window.fullscreen_window.show_clue_screen()
-            self.main_window.fullscreen_window.move_to_monitor(1)  # monitor 2 would be (index 1)
-            self.main_window.fullscreen_window.showFullScreen()
-        else:
+        if self.main_window.fullscreen_window == None:
             self.main_window.create_fullscreen_window()
-            self.main_window.fullscreen_window.show_clue_screen()
+            self.main_window.fullscreen_window.show_black_screen()
             self.main_window.fullscreen_window.move_to_monitor(1)  # monitor 2 would be (index 1)
             self.main_window.fullscreen_window.showFullScreen()
+
+        puzzle.trigger_video(self.main_window)
+        if self.thread_puzzle is None:
+            self.thread_puzzle = threading.Thread(target=lambda: puzzle.Puzzle(
+                self.main_window))  # if the function has parameters you need to specify it using a lambda function, otherwise python calls it immediately
+            self.thread_puzzle.start()
+            print("puzzle button pressed")
+
+    def Lock_box(self):
+        """
+        Sends 'Lock' or 'Unlock' message to the Arduino based on the toggle switch state.
+        """
+        if self.main_window.lock_switch._checked:
+            self.main_window.arduino_communicator.send_message('Lock')
+            print("Lock message sent")
+        else:
+            self.main_window.arduino_communicator.send_message('Unlock')
+            print("Unlock message sent")
 
 
 

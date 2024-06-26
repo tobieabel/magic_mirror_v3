@@ -1,7 +1,8 @@
 from PyQt5.QtWidgets import QMainWindow, QPushButton, QHBoxLayout, QWidget, QLabel, QVBoxLayout, QStackedLayout, \
-    QApplication, QFileDialog, QComboBox
-from PyQt5.QtGui import QImage, QPixmap, QFont
-from PyQt5.QtCore import Qt, QSize, pyqtSignal, pyqtSlot, QUrl
+    QApplication, QFileDialog, QComboBox, QSizePolicy, QStylePainter, QStyleOption
+from PyQt5.QtGui import QImage, QPixmap, QFont, QColor, QPen, QBrush, QFontMetrics
+from PyQt5.QtCore import Qt, QSize, pyqtSignal, pyqtSlot, QUrl, QCoreApplication, QRect, QPoint, QPropertyAnimation, \
+    QObject, pyqtProperty
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 from PyQt5.QtMultimediaWidgets import QVideoWidget
 import shutil
@@ -9,6 +10,7 @@ import os
 import glob
 import Model.object_detection
 from Model.object_detection import video_update
+from Model.Arduino_communication import ArduinoCommunicator
 import cv2
 import numpy as np
 import time
@@ -35,8 +37,15 @@ class MainWindow(QMainWindow):
         self.upload_button.setFixedSize(QSize(150, 50))
         self.video_picklist = QComboBox()
         self.video_picklist.setFixedSize(QSize(300, 50))
+        self.lock_switch = ToggleSwitch()
+        self.lock_switch.setFixedSize(QSize(100, 50))  # Adjust size if needed
+
+
         self.video_widget = VideoWidget()
         self.fullscreen_window = None
+
+        # Create an instance of the ArduinoCommunicator class
+        self.arduino_communicator = ArduinoCommunicator('192.168.1.102', 5555)
 
         # Connect the upload button to the upload method
         self.upload_button.clicked.connect(self.upload_video)
@@ -51,6 +60,7 @@ class MainWindow(QMainWindow):
         button_layout.addWidget(self.stop_button)
         button_layout.addWidget(self.puzzle_button)
         button_layout.addWidget(self.upload_button)
+        button_layout.addWidget(self.lock_switch)
 
         # Create a vertical layout and add the button layout and video widget
         layout = QVBoxLayout()
@@ -61,6 +71,8 @@ class MainWindow(QMainWindow):
         container = QWidget()
         container.setLayout(layout)
         self.setCentralWidget(container)
+
+
 
     def create_fullscreen_window(self):
         self.fullscreen_window = FullScreenWindow()
@@ -103,6 +115,90 @@ class MainWindow(QMainWindow):
         if selected_video:
             video_file_path = selected_video
             print(f"Selected video path: {video_file_path}")
+
+class ToggleSwitch(QWidget, QObject):  # Inherit from QObject
+    # Custom signal for toggled state
+    toggled = pyqtSignal(bool)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.setFixedSize(60, 15)  # Adjust size as needed
+        self._checked = True
+        self.animation = None
+
+    def paintEvent(self, event):
+        painter = QStylePainter(self)
+        option = QStyleOption()
+        option.initFrom(self)
+
+        # Draw the switch background
+        painter.setPen(QPen(QColor(150, 150, 150), 2))  # Grey outline
+        painter.setBrush(QBrush(QColor(255, 255, 255)))  # White background
+
+        painter.drawRoundedRect(option.rect.adjusted(2, 2, -2, -2), 15, 15)  # Use two radius values for rounding
+
+
+        # Draw the toggle button
+        button_rect = QRect(self._checked * 30, 2, 40, 45)  # Adjust position based on checked state
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(QBrush(QColor(0, 0, 0)))  # Black button
+        painter.drawEllipse(button_rect)
+
+        # Draw the text (optional)
+        if self._checked:
+            text = "Lock"
+        else:
+            text = "Unlock"
+        font = painter.font()
+        font.setPointSize(8)
+        fontMetrics = QFontMetrics(font)
+        text_rect = fontMetrics.boundingRect(text)
+        text_x = (self.width() - text_rect.width()) // 2
+        text_y = (self.height() - text_rect.height()) // 2
+        painter.setPen(QColor(100, 100, 255)) #blueish text colour
+        painter.drawText(QPoint(text_x, text_y), text)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.toggle()
+
+    def toggle(self):
+        """
+        Toggles the switch state and animates the transition.
+        """
+
+        self._checked = not self._checked
+
+        if self.animation is not None:
+            self.animation.stop()
+        self.animation = QPropertyAnimation(self, b"checked")
+        self.animation.setDuration(200)  # Adjust animation duration
+        self.animation.setStartValue(not self._checked)
+        self.animation.setEndValue(self._checked)
+        self.animation.start()
+
+        # Emit the toggled signal with the new checked state
+        self.toggled.emit(self._checked)
+
+
+
+
+    def setChecked(self, value): #where am I passing the value paramter to this?
+        #self._checked = value  #not using this as I cannot tell where value paramter is being set, and it always seems to set to False
+        #irrespective of the current value for self._checked
+        self.update()
+
+    def getChecked(self):
+        return self._checked
+
+    @pyqtProperty(bool, fset=setChecked, fget=getChecked)  # Register the property
+    def checked(self):
+        return self._checked
+
+
+
+
 
 class VideoWidget(QWidget):
     def __init__(self):
@@ -156,6 +252,7 @@ class VideoWidget(QWidget):
 class FullScreenWindow(QWidget):
     frame_received = pyqtSignal(object)
     play_video_signal = pyqtSignal(str)
+    Start_Puzzle = False #flag to start puzzle once the video has finished and clue has been on the screen 10 seconds
 
     def __init__(self):
         super().__init__()
@@ -217,6 +314,11 @@ class FullScreenWindow(QWidget):
 
     def show_clue_screen(self):
         self.stacked_layout.setCurrentIndex(1)
+        #can't use time.sleep with this pyQT for some reason, probably running async code to control GUI
+        QCoreApplication.processEvents()
+
+
+
 
 
     def show_black_screen(self):
@@ -239,6 +341,8 @@ class FullScreenWindow(QWidget):
         """
         if status == QMediaPlayer.EndOfMedia:
             self.show_clue_screen()
+            time.sleep(10)
+            self.Start_Puzzle = True #breaks the loop playing in puzzle.py on seperate thread
             #self.close_FullScreenWindow() #don't need this function at the moment, but keep for future
 
     def close_FullScreenWindow(self):

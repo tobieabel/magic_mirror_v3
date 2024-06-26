@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 import math
 import time
+from Model.Arduino_communication import ArduinoCommunicator
 
 
 def trigger_video(mainwindow):
@@ -10,11 +11,16 @@ def trigger_video(mainwindow):
         mainwindow.fullscreen_window.show_mp4_video()
 
 
+
 #run the pose estimation model and the puzzle code
 def Puzzle(mainwindow):
     #detect one hand raised
     print("got to Puzzle()")
-    time.sleep(15)
+    while True: #the Start_Puzzle flag is set to True once the clue screen has been displayed for about 10 seconds
+        if mainwindow.fullscreen_window.Start_Puzzle == True:
+            mainwindow.fullscreen_window.Start_Puzzle = False
+            break
+
     mainwindow.fullscreen_window.show_camera_frame()
     pose_model = model = YOLO("/Users/tobieabel/PycharmProjects/Magic_Mirror_v3/Model/Resources/yolov8n-pose.pt")
     vid_cap = cv2.VideoCapture(0) #capture images from webcam
@@ -50,7 +56,7 @@ def Puzzle(mainwindow):
                                 #draw line connecting nose and left wrist
                             cv2.line(black_mask, (int(nose[0]), int(nose[1])), (int(left_wrist[0]-50), int(left_wrist[1])),
                                      left_colour, 2)
-                            if left_angle < -65:
+                            if left_angle < -65: #means the left wrist is raised straight up signfying an 'I'
                                 time.sleep(3)
                                 I_success = True
 
@@ -65,14 +71,20 @@ def Puzzle(mainwindow):
                             cv2.line(black_mask, (int(nose[0]), int(nose[1])), (int(right_wrist[0]+50), int(right_wrist[1])),
                                 right_colour, 2)
                             if -110 <= right_angle <= -90:
-
                                 time.sleep(3)
-                                I_success = True
+                                I_success = True #means the right wrist is raised straight up signfying an 'I'
 
-                        if I_success == False: #i.e. this particular result was not an I but might be a V
+                        if I_success == False: #i.e. this particular result was not an I but might be a V, so put result in list to loop through below
                             v_candidates.append((left_angle,right_angle))
+                        elif I_success == True:  #if an 'I' was detected, then send message to arduino
+                            # send message to arduino
+                            mainwindow.arduino_communicator.send_message('Lock')
+                            #update status of Arduino Toggle on GUI
+                            mainwindow.Box_Status = 'Locked' #might need to use arduino_communicator.checked variable
+
             #connect to the FullScreenWindow
             mainwindow.fullscreen_window.frame_received.emit(black_mask)
+
             #cv2.imshow("Puzzle", black_mask)
             #if cv2.waitKey(1) & 0xFF == ord('q'):
             #    break
@@ -80,7 +92,7 @@ def Puzzle(mainwindow):
             #once you have looped through all the results, if there was an 'I', then display sound and now check for 'V'
             if I_success == True:
                 for v in v_candidates:
-                    if -50 <= v[0] <= -30 and -160 <= v[1] <= -140:
+                    if -50 <= v[0] <= -30 and -160 <= v[1] <= -140:#if the left and right wrists are at v angle
                         print("v shape!")
 
                         return '1234'
