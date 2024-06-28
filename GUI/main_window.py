@@ -39,7 +39,9 @@ class MainWindow(QMainWindow):
         self.video_picklist.setFixedSize(QSize(300, 50))
         self.lock_switch = ToggleSwitch()
         self.lock_switch.setFixedSize(QSize(100, 50))  # Adjust size if needed
-
+        self.lock_label = QLabel("Unlocked")
+        self.lock_label.setAlignment(Qt.AlignLeft)
+        self.lock_label.setStyleSheet("font: bold 12px; color: white;")  # Style the label
 
         self.video_widget = VideoWidget()
         self.fullscreen_window = None
@@ -54,19 +56,29 @@ class MainWindow(QMainWindow):
         # Populate video picklist
         self.update_video_picklist()
 
+        # Connect the toggle switch to update the lock label
+        self.lock_switch.toggled.connect(self.update_lock_label)
+
+        # Create a separate layout for the toggle switch and label
+        switch_label_layout = QVBoxLayout()
+        switch_label_layout.addWidget(self.lock_switch)
+        switch_label_layout.addWidget(self.lock_label)  # Add the label below the switch
+
         # Create a horizontal layout for buttons
         button_layout = QHBoxLayout()
+        button_layout.addLayout(switch_label_layout)  # Add the switch and label layout
         button_layout.addWidget(self.start_button)
         button_layout.addWidget(self.stop_button)
         button_layout.addWidget(self.puzzle_button)
-        button_layout.addWidget(self.upload_button)
-        button_layout.addWidget(self.lock_switch)
 
-        # Create a vertical layout and add the button layout and video widget
+
+        # Create a vertical layout and add the button layout and video widget and upload video elements
         layout = QVBoxLayout()
         layout.addLayout(button_layout)  # Add the horizontal button layout
+        layout.addWidget(self.upload_button)
         layout.addWidget(self.video_picklist)
         layout.addWidget(self.video_widget)
+
 
         container = QWidget()
         container.setLayout(layout)
@@ -116,6 +128,15 @@ class MainWindow(QMainWindow):
             video_file_path = selected_video
             print(f"Selected video path: {video_file_path}")
 
+    def update_lock_label(self, checked):
+        """
+        Updates the lock label text based on the toggle switch state.
+        """
+        if checked:
+            self.lock_label.setText("Locked")
+        else:
+            self.lock_label.setText("Unlocked")
+
 class ToggleSwitch(QWidget, QObject):  # Inherit from QObject
     # Custom signal for toggled state
     toggled = pyqtSignal(bool)
@@ -124,7 +145,7 @@ class ToggleSwitch(QWidget, QObject):  # Inherit from QObject
         super().__init__(parent)
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.setFixedSize(60, 15)  # Adjust size as needed
-        self._checked = True
+        self._checked = False
         self.animation = None
 
     def paintEvent(self, event):
@@ -140,24 +161,12 @@ class ToggleSwitch(QWidget, QObject):  # Inherit from QObject
 
 
         # Draw the toggle button
-        button_rect = QRect(self._checked * 30, 2, 40, 45)  # Adjust position based on checked state
+        button_rect = QRect(self._checked * 60, 2, 40, 45)  # Adjust position based on checked state
         painter.setPen(Qt.NoPen)
         painter.setBrush(QBrush(QColor(0, 0, 0)))  # Black button
         painter.drawEllipse(button_rect)
 
-        # Draw the text (optional)
-        if self._checked:
-            text = "Lock"
-        else:
-            text = "Unlock"
-        font = painter.font()
-        font.setPointSize(8)
-        fontMetrics = QFontMetrics(font)
-        text_rect = fontMetrics.boundingRect(text)
-        text_x = (self.width() - text_rect.width()) // 2
-        text_y = (self.height() - text_rect.height()) // 2
-        painter.setPen(QColor(100, 100, 255)) #blueish text colour
-        painter.drawText(QPoint(text_x, text_y), text)
+
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
@@ -293,6 +302,14 @@ class FullScreenWindow(QWidget):
         self.play_video_signal.connect(self.show_mp4_video)
         self.stacked_layout.addWidget(self.video_widget)
 
+        # Black screen with padlock code layout
+        self.unlock_widget = QLabel('Congratulations, you solved the puzzle!\n5789')
+        self.unlock_widget.setAlignment(Qt.AlignCenter)
+        self.unlock_widget.setStyleSheet("background-color: black; color: gold;")
+        font = QFont("Arial", 48, QFont.Bold)
+        self.unlock_widget.setFont(font)
+        self.stacked_layout.addWidget(self.unlock_widget)
+
         self.setLayout(self.stacked_layout)
 
     def move_to_monitor(self, monitor_index):
@@ -306,7 +323,7 @@ class FullScreenWindow(QWidget):
         pixmap = QPixmap.fromImage(image)
         self.camera_frame_label.setPixmap(pixmap)
         self.camera_frame_label.setAlignment(Qt.AlignCenter)
-        print('Puzzle update frame reached')
+        #print('Puzzle update frame reached')
 
     def show_camera_frame(self):
         self.stacked_layout.setCurrentIndex(0)
@@ -318,8 +335,8 @@ class FullScreenWindow(QWidget):
         QCoreApplication.processEvents()
 
 
-
-
+    def show_unlock_screen(self):
+        self.stacked_layout.setCurrentIndex(4)
 
     def show_black_screen(self):
         self.stacked_layout.setCurrentIndex(2)

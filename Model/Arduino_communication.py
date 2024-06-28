@@ -35,7 +35,7 @@ class ArduinoCommunicator:
 
     def send_message(self, message):
         print("Arduino message sent")
-        if 1==2:
+        if 1==2: #set to 1=2 for testing without actually using the arduino
             client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             try:
                 client_socket.connect((self.ip, self.port))
