@@ -293,7 +293,6 @@ class FullScreenWindow(QWidget):
         self.stacked_layout.addWidget(self.black_screen_widget)
 
 
-
         # Media player setup
         self.media_player = QMediaPlayer(None, QMediaPlayer.VideoSurface)
         self.video_widget = QVideoWidget(self)
@@ -309,6 +308,15 @@ class FullScreenWindow(QWidget):
         font = QFont("Arial", 48, QFont.Bold)
         self.unlock_widget.setFont(font)
         self.stacked_layout.addWidget(self.unlock_widget)
+
+        # Ghost screen with request info text layout
+        self.request_info_widget = QLabel(
+            'Speak Now,\nAnd We Will Assess Your Worthiness.\nWhat do you need help with?')
+        self.request_info_widget.setAlignment(Qt.AlignCenter)
+        self.request_info_widget.setStyleSheet("background-color: black; color: gold;")
+        font = QFont("Arial", 48, QFont.Bold)
+        self.request_info_widget.setFont(font)
+        self.stacked_layout.addWidget(self.request_info_widget)
 
         self.setLayout(self.stacked_layout)
 
@@ -337,6 +345,9 @@ class FullScreenWindow(QWidget):
 
     def show_unlock_screen(self):
         self.stacked_layout.setCurrentIndex(4)
+
+    def show_request_info_screen(self):
+        self.stacked_layout.setCurrentIndex(5)
 
     def show_black_screen(self):
         self.stacked_layout.setCurrentIndex(2)
