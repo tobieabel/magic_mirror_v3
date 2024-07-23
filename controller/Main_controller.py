@@ -2,6 +2,7 @@ import threading
 import Model.object_detection as od
 import Model.puzzle as puzzle
 import time
+import Model.qtLabelWithDrawPolygon
 
 
 class MainController:
@@ -12,10 +13,12 @@ class MainController:
         self.main_window.stop_button.clicked.connect(self.stop_application)
         self.main_window.puzzle_button.clicked.connect(self.start_puzzle)
         self.main_window.lock_switch.toggled.connect(self.Lock_box)  # Connect to your toggle function
+        self.main_window.draw_polygon_button.clicked.connect(self.draw_polygon)
+        self.main_window.save_polygon_button.clicked.connect(self.save_polygon)
         self.thread_od = None
         self.thread_puzzle = None
 
-    def start_application(self):
+    def start_application(self,count):
 
         if self.main_window.fullscreen_window !=None:
             self.main_window.fullscreen_window.show_black_screen()
@@ -48,7 +51,7 @@ class MainController:
         if self.thread_puzzle is None:
             self.thread_puzzle = threading.Thread(target=lambda:puzzle.Puzzle(self.main_window))#if the function has parameters you need to specify it using a lambda function, otherwise python calls it immediately
             self.thread_puzzle.start()
-            print("got here")
+
 
 
 
@@ -97,6 +100,14 @@ class MainController:
         else:
             self.main_window.arduino_communicator.send_message('Unlock')
             print("Unlock message sent")
+
+    def draw_polygon(self):
+        self.main_window.video_widget.video_label.Allow_drawing = True #sets flag to true in qtLabelWith DrawPolygon class
+        self.main_window.video_widget.video_label.polygonDrawn.connect(self.main_window.video_widget.video_label.debug_polygon)
+
+    def save_polygon(self):
+        self.main_window.video_widget.video_label.Allow_drawing = False  # sets flag to false in qtLabelWith DrawPolygon class
+        # save polygon dictionary to supervision polygons and draw sv.polygons and labels onto the image
 
 
 

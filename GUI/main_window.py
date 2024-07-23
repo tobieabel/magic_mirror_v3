@@ -15,6 +15,8 @@ import cv2
 import numpy as np
 import time
 
+from Model.qtLabelWithDrawPolygon import LabelWithDrawPolygon
+
 #video_file_path = '/Users/tobieabel/PycharmProjects/Magic_Mirror_v3/uploads/Scary_NunV3.mp4'
 uploads_dir = '/Users/tobieabel/PycharmProjects/Magic_Mirror_v3/uploads/'
 video_file_path = os.path.join(uploads_dir, 'Scary_NunV3.mp4')  # Initial hardcoded path
@@ -42,8 +44,12 @@ class MainWindow(QMainWindow):
         self.lock_label = QLabel("Unlocked")
         self.lock_label.setAlignment(Qt.AlignLeft)
         self.lock_label.setStyleSheet("font: bold 12px; color: white;")  # Style the label
-
         self.video_widget = VideoWidget()
+        self.draw_polygon_button = QPushButton('Draw Polygons')
+        self.save_polygon_button = QPushButton('Save Polygons')
+        self.draw_polygon_button.setFixedSize(QSize(150, 50))
+        self.save_polygon_button.setFixedSize(QSize(150, 50))
+
         self.fullscreen_window = None
 
         # Create an instance of the ArduinoCommunicator class
@@ -71,6 +77,12 @@ class MainWindow(QMainWindow):
         button_layout.addWidget(self.stop_button)
         button_layout.addWidget(self.puzzle_button)
 
+        #create a horizontal layout for polygon buttons
+        polygon_buttons_layout = QHBoxLayout()
+        polygon_buttons_layout.addWidget(self.draw_polygon_button)
+        polygon_buttons_layout.addWidget(self.save_polygon_button)
+
+
 
         # Create a vertical layout and add the button layout and video widget and upload video elements
         layout = QVBoxLayout()
@@ -78,6 +90,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.upload_button)
         layout.addWidget(self.video_picklist)
         layout.addWidget(self.video_widget)
+        layout.addLayout(polygon_buttons_layout)
 
 
         container = QWidget()
@@ -216,7 +229,7 @@ class VideoWidget(QWidget):
 
     def init_ui(self):
         self.layout = QVBoxLayout()
-        self.video_label = QLabel()
+        self.video_label = LabelWithDrawPolygon()
         self.layout.addWidget(self.video_label)
         self.setLayout(self.layout)
         self.black_frame()
@@ -273,13 +286,13 @@ class FullScreenWindow(QWidget):
 
         self.stacked_layout = QStackedLayout()
 
-        # Camera frame layout
+        # Camera frame layout index 0
         self.camera_frame_label = QLabel(self)
         self.camera_frame_label.setAlignment(Qt.AlignCenter)
         self.stacked_layout.addWidget(self.camera_frame_label)
         self.connection_frame_received = self.frame_received.connect(self.update_frame) #connect signal to show camera frame function
 
-        # Black screen with puzzle_text layout
+        # Black screen with puzzle_text layout index 1
         self.clue_widget = QLabel('To Open the box,\nMake the number you see,\nRed lights turn green,\nWith an I before V')
         self.clue_widget.setAlignment(Qt.AlignCenter)
         self.clue_widget.setStyleSheet("background-color: black; color: gold;")
@@ -287,13 +300,13 @@ class FullScreenWindow(QWidget):
         self.clue_widget.setFont(font)
         self.stacked_layout.addWidget(self.clue_widget)
 
-        # Black screen without text layout
+        # Black screen without text layout  index 2
         self.black_screen_widget = QWidget(self)
         self.black_screen_widget.setStyleSheet("background-color: black;")
         self.stacked_layout.addWidget(self.black_screen_widget)
 
 
-        # Media player setup
+        # Media player setup index 3
         self.media_player = QMediaPlayer(None, QMediaPlayer.VideoSurface)
         self.video_widget = QVideoWidget(self)
         self.media_player.setVideoOutput(self.video_widget)
@@ -301,7 +314,7 @@ class FullScreenWindow(QWidget):
         self.play_video_signal.connect(self.show_mp4_video)
         self.stacked_layout.addWidget(self.video_widget)
 
-        # Black screen with padlock code layout
+        # Black screen with padlock code layout  index 4
         self.unlock_widget = QLabel('Congratulations, you solved the puzzle!\n5789')
         self.unlock_widget.setAlignment(Qt.AlignCenter)
         self.unlock_widget.setStyleSheet("background-color: black; color: gold;")
@@ -309,14 +322,29 @@ class FullScreenWindow(QWidget):
         self.unlock_widget.setFont(font)
         self.stacked_layout.addWidget(self.unlock_widget)
 
-        # Ghost screen with request info text layout
+        # Ghost screen with request info text layout  index 5
+        #create label for the text
         self.request_info_widget = QLabel(
             'Speak Now,\nAnd We Will Assess Your Worthiness.\nWhat do you need help with?')
         self.request_info_widget.setAlignment(Qt.AlignCenter)
         self.request_info_widget.setStyleSheet("background-color: black; color: gold;")
         font = QFont("Arial", 48, QFont.Bold)
         self.request_info_widget.setFont(font)
-        self.stacked_layout.addWidget(self.request_info_widget)
+        # Create a label for the image
+        self.ghost_image_label = QLabel()
+        pixmap = QPixmap("/Users/tobieabel/PycharmProjects/Magic_Mirror_v3/Model/Resources/ghost face.jpg")  # Replace with your image path
+        self.ghost_image_label.setPixmap(pixmap)
+        self.ghost_image_label.setAlignment(Qt.AlignCenter)
+        self.ghost_image_label.setStyleSheet("background-color: black;")
+
+        # Create a vertical layout to hold both the image and the text
+        self.ghost_vbox_layout = QVBoxLayout()
+        self.ghost_vbox_layout.addWidget(self.ghost_image_label)
+        self.ghost_vbox_layout.addWidget(self.request_info_widget)
+        # Create a widget to contain the vertical layout
+        self.ghost_combined_widget = QWidget()
+        self.ghost_combined_widget.setLayout(self.ghost_vbox_layout)
+        self.stacked_layout.addWidget(self.ghost_combined_widget)
 
         self.setLayout(self.stacked_layout)
 
