@@ -1,6 +1,8 @@
 from PyQt5.QtGui import QPainter, QBrush, QPen, QColor, QPolygon, QFont
 from PyQt5.QtCore import Qt, pyqtSignal, QRect, QPoint
 from PyQt5.QtWidgets import QLabel
+import supervision as sv
+import numpy as np
 
 
 class LabelWithDrawPolygon(QLabel):
@@ -16,6 +18,8 @@ class LabelWithDrawPolygon(QLabel):
     # the cordinates of the mouse when the mouse is moving about and the last poligon line isnt deturmed yet (drawn in red)
     x = None
     y = None
+
+    shape=(640,640) #shape of the video frame to use for drawing the polygon etc
 
     polygon = QPolygon()  # used to hold the polygon data
     polygon_dict = {}  # used to hold the polygon data in a dictionary format
@@ -124,3 +128,15 @@ class LabelWithDrawPolygon(QLabel):
             print('PolygonZone {0}'.format(zone))
             print('no. of cordinates {0}'.format(len(poly)))
             print(poly[0]) #print polygon cordinates in (x,y) format
+
+    def return_sv_polygon_zones(self):
+        polygons = []
+        sv_polygon_zones = []
+        for coordinates, QTpolygon in self.polygon_dict.values():
+            polygon = np.array(coordinates)
+            polygons.append(polygon)
+        for polygon in polygons:
+            polygon_zone = sv.PolygonZone(polygon, self.shape,
+                                      triggering_position=sv.Position.CENTER)  # initiate sv_polygon zone
+            sv_polygon_zones.append(polygon_zone)
+        return sv_polygon_zones

@@ -15,8 +15,10 @@ class MainController:
         self.main_window.lock_switch.toggled.connect(self.Lock_box)  # Connect to your toggle function
         self.main_window.draw_polygon_button.clicked.connect(self.draw_polygon)
         self.main_window.save_polygon_button.clicked.connect(self.save_polygon)
+        self.main_window.clear_polygon_button.clicked.connect(self.clear_polygon)
         self.thread_od = None
         self.thread_puzzle = None
+        self.sv_polygon_zones = None
 
     def start_application(self,count):
 
@@ -33,7 +35,7 @@ class MainController:
         if self.thread_od is None or not self.thread_od.is_alive():
             self.main_window.video_widget.connect_signal() #connection to slot between video widget and object detection script
             od.video_update.terminate_pipeline.connect(self.Stop_Inference_pipeline) #connection between object detection script and main controller
-            self.thread_od= threading.Thread(target=od.Mains)
+            self.thread_od= threading.Thread(target=od.Mains, args=[self.sv_polygon_zones])#paramters for threads have to be passed as args, and be an iterable (a list) for some reason
             self.thread_od.start()
 
 
@@ -107,7 +109,14 @@ class MainController:
 
     def save_polygon(self):
         self.main_window.video_widget.video_label.Allow_drawing = False  # sets flag to false in qtLabelWith DrawPolygon class
-        # save polygon dictionary to supervision polygons and draw sv.polygons and labels onto the image
+        # save polygon dictionary to supervision polygons
+        self.sv_polygon_zones = self.main_window.video_widget.video_label.return_sv_polygon_zones()
+        print(self.sv_polygon_zones)
 
-
+    def clear_polygon(self):
+        self.main_window.video_widget.video_label.polygon_dict={}
+        self.sv_polygon_zones = None
+        self.main_window.video_widget.video_label.polygon = None
+        #remove the existing polygon drawings from the frame
+        self.main_window.video_widget.video_label.update()
 

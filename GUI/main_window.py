@@ -46,9 +46,11 @@ class MainWindow(QMainWindow):
         self.lock_label.setStyleSheet("font: bold 12px; color: white;")  # Style the label
         self.video_widget = VideoWidget()
         self.draw_polygon_button = QPushButton('Draw Polygons')
-        self.save_polygon_button = QPushButton('Save Polygons')
         self.draw_polygon_button.setFixedSize(QSize(150, 50))
+        self.save_polygon_button = QPushButton('Save Polygons')
         self.save_polygon_button.setFixedSize(QSize(150, 50))
+        self.clear_polygon_button = QPushButton('Clear Polygons')
+        self.clear_polygon_button.setFixedSize(QSize(150, 50))
 
         self.fullscreen_window = None
 
@@ -81,6 +83,7 @@ class MainWindow(QMainWindow):
         polygon_buttons_layout = QHBoxLayout()
         polygon_buttons_layout.addWidget(self.draw_polygon_button)
         polygon_buttons_layout.addWidget(self.save_polygon_button)
+        polygon_buttons_layout.addWidget(self.clear_polygon_button)
 
 
 
@@ -232,7 +235,9 @@ class VideoWidget(QWidget):
         self.video_label = LabelWithDrawPolygon()
         self.layout.addWidget(self.video_label)
         self.setLayout(self.layout)
+        self.shape = (640, 480)
         self.black_frame()
+
     def update_frame(self, frame, blackframe=False):
         """
         Update the video frame displayed in the widget.
@@ -248,16 +253,18 @@ class VideoWidget(QWidget):
             self.video_label.setPixmap(pixmap)
             self.video_label.setAlignment(Qt.AlignCenter)
             print("update frame function reached")
+            print("webcam frame shape is {0},{1}".format(frame.shape[1],frame.shape[0]))
 
 
     def black_frame(self):
         """
         Display a black frame on the video label.
         """
-        height, width = self.video_label.height(), self.video_label.width()
+        width,height = self.shape
         black_frame = np.zeros((height, width, 3), np.uint8)
         self.update_frame(black_frame, True)
         print("black frame should appear")
+        print("black frame shape is {0},{1}".format(height,width))
 
 
 
